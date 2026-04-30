@@ -11,7 +11,7 @@ class GameState:
         self._deal_next_card()
 
     def _initialize_deck(self):
-        suits = ['H', 'D', 'C', 'S']
+        suits = ['h', 'd', 'c', 's']
         ranks = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
         deck = [f"{rank}{suit}" for suit in suits for rank in ranks]
         random.shuffle(deck)
@@ -23,24 +23,29 @@ class GameState:
         else:
             self.current_card = None
 
-    def handle_card_decision(self, decision: str):
+    def keep(self):
         if self.is_game_over:
             raise ValueError("Game is already over.")
-        
         if self.current_card is None:
             raise ValueError("No card to make a decision on.")
-
-        if decision == 'keep':
-            self.player_hand.append(self.current_card)
-        elif decision == 'give':
-            self.dealer_hand.append(self.current_card)
+        
+        self.player_hand.append(self.current_card)
+        if len(self.player_hand) == 5 or not self.deck:
+            self._finalize_game()
         else:
-            raise ValueError("Decision must be 'keep' or 'give'.")
-
-        self.current_card = None
-
-        # Check end condition: player has kept 5 cards
-        if len(self.player_hand) == 5:
+            self._deal_next_card()
+    
+    def give(self):
+        if self.is_game_over:
+            raise ValueError("Game is already over.")
+        if self.current_card is None:
+            raise ValueError("No card to make a decision on.")
+        # also account for current card
+        if len(self.player_hand) + len(self.deck) <= 4: 
+            raise ValueError("Not enough cards left to give to the dealer.")
+        
+        self.dealer_hand.append(self.current_card)
+        if len(self.player_hand) == 5 or not self.deck:
             self._finalize_game()
         else:
             self._deal_next_card()

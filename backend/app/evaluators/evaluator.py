@@ -1,25 +1,28 @@
 import itertools
 from treys import Card, Evaluator
 
+# treys format: 2h, 3d, 4c, 5s, Th, Jd, Qc, Ks, Ah
+# card representation from game.py is consistent with
 def determine_winner(player_hand, dealer_hand):
-    evaluator = Evaluator()
-    
-    # Convert '7H' (my game format) to '7h' (Treys format)
-    def to_treys(card_str):
-        rank = card_str[0]
-        suit = card_str[1].lower()
-        return Card.new(f"{rank}{suit}")
+    if len(player_hand) != 5:
+        raise ValueError("Player must have exactly 5 cards.")
+    if len(dealer_hand) < 8:
+        raise ValueError("Dealer must have at least 8 cards.")
+    if len(set(player_hand + dealer_hand)) != len(player_hand) + len(dealer_hand): 
+        raise ValueError("Duplicate cards detected between player and dealer hands.")
 
-    treys_player = [to_treys(c) for c in player_hand]
-    treys_dealer = [to_treys(c) for c in dealer_hand]
+    evaluator = Evaluator()
+
+    treys_player_hand = [Card.new(card) for card in player_hand]
+    treys_dealer_hand = [Card.new(card) for card in dealer_hand]
 
     # Evaluate the player's exactly 5-card hand
-    player_score = evaluator.evaluate(treys_player, [])
+    player_score = evaluator.evaluate(treys_player_hand, [])
     
     # The dealer has 8+ cards, but Treys evaluates max 7 cards natively.
     # Therefore, we generate all 5-card combinations for the dealer and find the best (lowest score).
     best_dealer_score = float('inf')
-    for combo in itertools.combinations(treys_dealer, 5):
+    for combo in itertools.combinations(treys_dealer_hand, 5):
         score = evaluator.evaluate(list(combo), [])
         if score < best_dealer_score:
             best_dealer_score = score
