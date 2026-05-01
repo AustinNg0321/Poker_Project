@@ -1,7 +1,7 @@
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 from sqlalchemy import Column, String, Integer, DateTime
 from sqlalchemy.ext.declarative import declarative_base
@@ -19,6 +19,7 @@ class GuestGame(Base):
     current_card = Column(String, nullable=True)
     wins = Column(Integer, default=0)
     losses = Column(Integer, default=0)
+    draws = Column(Integer, default=0)
     abandoned = Column(Integer, default=0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
@@ -53,13 +54,14 @@ class GameBase(BaseModel):
     current_card: Optional[str] = None
     wins: int = 0
     losses: int = 0
+    draws: int = 0
     abandoned: int = 0
 
 class GameCreate(BaseModel):
     pass
 
 class GameAction(BaseModel):
-    action: str
+    action: Literal["keep", "give"]
 
 class GameResponse(GameBase):
     player_hand: List[str]
@@ -70,3 +72,13 @@ class GameResponse(GameBase):
 
     class Config:
         from_attributes = True
+
+class ResultResponse(BaseModel):
+    status: str
+    message: Optional[str] = None
+    winner: Optional[str] = None
+    player_hand: Optional[List[str]] = None
+    dealer_hand: Optional[List[str]] = None
+    wins: Optional[int] = None
+    losses: Optional[int] = None
+    abandoned: Optional[int] = None

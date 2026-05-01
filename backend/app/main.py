@@ -1,13 +1,17 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from dotenv import load_dotenv
 import sys
 import os
+import uuid
 
 # Add the parent directory to sys.path to allow importing from backend modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from backend.data.guest_games import Base, GuestGame, GameResponse, GameAction
+from backend.data.guest_games import Base, GuestGame, GameResponse, GameAction, ResultResponse
 from backend.app.core.game import GameState
 from backend.app.evaluators.evaluator import determine_winner
 
@@ -20,7 +24,45 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# Dependency
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"], # Update with your frontend URL
+    allow_credentials=True, # Required for cookies/sessions
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Add Session Middleware for signed cookies
+load_dotenv()
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY"))
+
+# create a game only when a user presses "start game" or similar
+def get_or_create_player(user_id: str, db: Session):
+    player = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
+    if not player:
+        player = GuestGame(user_id=user_id)
+        db.add(player)
+        db.commit()
+
+# determine game progress solely with game info
+# no game -> false
+def is_game_over(game: GuestGame):
+    if len(game.player_hand) == 5:
+        return True
+    if game.current_card is None and not game.deck:
+        return True
+    return False
+
+def is_game_valid(game: GuestGame):
+    if len(game.player_hand) > 5:
+        return False
+    if len(game.player_hand) == 5 and len(game.dealer_hand) < 8:
+        return False
+    if len(game.player_hand) < 5 and not game.current_card:
+        return False
+    return True
+
+# Dependencies
 def get_db():
     db = SessionLocal()
     try:
@@ -28,20 +70,24 @@ def get_db():
     finally:
         db.close()
 
+def get_session_id(request: Request):
+    if "session_id" not in request.session:
+        request.session["session_id"] = str(uuid.uuid4())
+    return request.session["session_id"]
+
 @app.get("/")
 def read_root():
     return {"status": "ok"}
 
-@app.post("/new_game/{user_id}", response_model=GameResponse)
-def new_game(user_id: str, db: Session = Depends(get_db)):
+# New Session-based endpoint
+@app.post("/game/new", response_model=GameResponse)
+def create_new_game(db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
+    get_or_create_player(user_id, db)
+    
+    # Treat session_id as user_id for GuestGame
     game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
-    if not game:
-        game = GuestGame(user_id=user_id)
-        db.add(game)
-    else:
-        # Mark as abandoned if ongoing
-        if game.deck and len(game.player_hand) < 5:
-             game.abandoned += 1
+    if game.deck and len(game.player_hand) < 5:
+        game.abandoned += 1
 
     # Initialize new game state
     new_state = GameState()
@@ -54,30 +100,29 @@ def new_game(user_id: str, db: Session = Depends(get_db)):
     db.refresh(game)
     return game
 
-@app.post("/action/{user_id}", response_model=GameResponse)
-def play_action(user_id: str, action_data: GameAction, db: Session = Depends(get_db)):
+@app.post("/action", response_model=GameResponse)
+def play_action(action_data: GameAction, db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
     game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found for this user")
+    if not is_game_valid(game):
+        raise HTTPException(status_code=400, detail="Game is invalid.")
     
-    if not game.deck and not game.current_card:
-         raise HTTPException(status_code=400, detail="Game is over. Start a new game.")
-    
-    # Reconstruct game state
     state = GameState()
     state.deck = game.deck
     state.player_hand = game.player_hand
     state.dealer_hand = game.dealer_hand
     state.current_card = game.current_card
-    state.is_game_over = False if game.current_card else True
-    
+    state.is_game_over = is_game_over(game)
+
+    if state.is_game_over:
+        raise HTTPException(status_code=400, detail="Game is over. Start a new game.")
+
     try:
-        if action_data.action.lower() == "keep":
+        if action_data.action == "keep":
             state.keep()
-        elif action_data.action.lower() == "give":
-            state.give()
         else:
-            raise HTTPException(status_code=400, detail="Invalid action. Use 'keep' or 'give'.")
+            state.give()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     
@@ -87,6 +132,7 @@ def play_action(user_id: str, action_data: GameAction, db: Session = Depends(get
     game.dealer_hand = state.dealer_hand
     game.current_card = state.current_card
     
+    # !!!!!!
     if getattr(state, 'is_game_over', False) or len(state.player_hand) == 5:
         # Determine winner if game is over
         if len(state.dealer_hand) >= 8:
@@ -101,15 +147,15 @@ def play_action(user_id: str, action_data: GameAction, db: Session = Depends(get
     db.refresh(game)
     return game
 
-@app.get("/game/{user_id}", response_model=GameResponse)
-def get_game(user_id: str, db: Session = Depends(get_db)):
+@app.get("/game", response_model=GameResponse)
+def get_game(db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
     game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
     return game
 
-@app.get("/results/{user_id}")
-def get_results(user_id: str, db: Session = Depends(get_db)):
+@app.get("/results", response_model=ResultResponse)
+def get_results(db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
     game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
@@ -129,5 +175,7 @@ def get_results(user_id: str, db: Session = Depends(get_db)):
             "losses": game.losses,
             "abandoned": game.abandoned
         }
+    
+    # should change later !!!
     except Exception as e:
-         return {"status": "error", "message": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
