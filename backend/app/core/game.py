@@ -52,6 +52,7 @@ class GameState:
 
     def _finalize_game(self):
         self.is_game_over = True
+        self.current_card = None 
         
         # Dealer must have at least 8 cards
         while len(self.dealer_hand) < 8 and self.deck:
