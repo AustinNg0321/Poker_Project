@@ -1,5 +1,4 @@
 import random
-import itertools
 import sys
 import os
 
@@ -18,7 +17,6 @@ def estimate_baseline_win_probability(num_simulations):
     ranks = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
     base_deck = [f"{rank}{suit}" for suit in suits for rank in ranks]
     treys_deck = [Card.new(card) for card in base_deck]
-    # combo_indices = list(itertools.combinations(range(8), 5))
     
     player_wins = 0
     dealer_wins = 0
