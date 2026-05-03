@@ -20,7 +20,7 @@ def game_end_test(game):
     assert len(game.dealer_hand) >= 8
 
     winner = determine_winner(game.player_hand, game.dealer_hand)
-    assert winner in ['player', 'dealer', 'tie']
+    assert winner in ['player', 'dealer']
 
 
 def test_all_keep(game):
@@ -151,4 +151,4 @@ def test_evaluation_10():
     # Tie (same straights)
     player_hand = ['2h', '3h', '4h', '5h', '6s']
     dealer_hand = ['2d', '3d', '4d', '5d', '6c', '9s', 'Ts', 'Js']
-    assert determine_winner(player_hand, dealer_hand) == 'tie'
+    assert determine_winner(player_hand, dealer_hand) == 'dealer'

@@ -32,9 +32,5 @@ def determine_winner_helper(player_hand, dealer_hand):
             best_dealer_score = score
 
     # In Treys, a lower score indicates a stronger poker hand
-    if player_score < best_dealer_score:
-        return 'player'
-    elif best_dealer_score < player_score:
-        return 'dealer'
-    else:
-        return 'tie'
+    # Draws count as losses
+    return "player" if player_score < best_dealer_score else "dealer"

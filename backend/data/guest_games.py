@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 Base = declarative_base()
 
+# Draws count as losses
 class GuestGame(Base):
     __tablename__ = 'guest_games'
 
@@ -18,8 +19,7 @@ class GuestGame(Base):
     _deck = Column("deck", String, default="[]")
     current_card = Column(String, nullable=True)
     wins = Column(Integer, default=0)
-    losses = Column(Integer, default=0)
-    draws = Column(Integer, default=0)
+    losses = Column(Integer, default=0) 
     abandoned = Column(Integer, default=0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
@@ -54,7 +54,6 @@ class GameBase(BaseModel):
     current_card: Optional[str] = None
     wins: int = 0
     losses: int = 0
-    draws: int = 0
     abandoned: int = 0
 
 class GameCreate(BaseModel):

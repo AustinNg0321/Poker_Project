@@ -44,6 +44,11 @@ def get_or_create_player(user_id: str, db: Session):
         db.add(player)
         db.commit()
 
+# determine if the user has initialized any game
+def is_game_started(game: GuestGame):
+    return game and (len(game.player_hand) > 0 or len(game.dealer_hand) > 0 or
+                      len(game.deck) > 0 or game.current_card is not None)
+
 # determine game progress solely with game info
 # no game -> false
 def is_game_over(game: GuestGame):
@@ -52,6 +57,8 @@ def is_game_over(game: GuestGame):
     return game and len(game.player_hand) == 5
 
 def is_game_valid(game: GuestGame):
+    if not game or not is_game_started(game):
+        return False
     if len(game.player_hand) > 5:
         return False
     if len(game.player_hand) == 5 and len(game.dealer_hand) < 8:
@@ -84,7 +91,7 @@ def create_new_game(db: Session = Depends(get_db), user_id: str = Depends(get_se
     
     # Treat session_id as user_id for GuestGame
     game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
-    if not is_game_over(game):
+    if is_game_started(game) and not is_game_over(game):
         game.abandoned += 1
 
     # Initialize new game state
@@ -101,7 +108,7 @@ def create_new_game(db: Session = Depends(get_db), user_id: str = Depends(get_se
 @app.post("/action", response_model=GameResponse)
 def play_action(action_data: GameAction, db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
     game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
-    if not game:
+    if not game or not is_game_started(game):
         raise HTTPException(status_code=404, detail="Game not found for this user")
     if not is_game_valid(game):
         raise HTTPException(status_code=400, detail="Game is invalid.")
@@ -136,8 +143,6 @@ def play_action(action_data: GameAction, db: Session = Depends(get_db), user_id:
             game.wins += 1
         elif winner == 'dealer':
             game.losses += 1
-        else:
-            game.draws += 1
     
     db.commit()
     db.refresh(game)
@@ -146,17 +151,15 @@ def play_action(action_data: GameAction, db: Session = Depends(get_db), user_id:
 @app.get("/game", response_model=GameResponse)
 def get_game(db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
     game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
-    if not game:
+    if not game or not is_game_started(game):
         raise HTTPException(status_code=404, detail="Game not found")
     return game
 
 @app.get("/results", response_model=ResultResponse)
 def get_results(db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
     game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
-    if not game:
+    if not game or not is_game_started(game):
         raise HTTPException(status_code=404, detail="Game not found")
-    
-    # Basic check if game is over
     if not is_game_over(game):
         return {"status": "ongoing", "message": "Game is still ongoing"}
         
@@ -169,7 +172,6 @@ def get_results(db: Session = Depends(get_db), user_id: str = Depends(get_sessio
             "dealer_hand": game.dealer_hand,
             "wins": game.wins,
             "losses": game.losses,
-            "draws": game.draws,
             "abandoned": game.abandoned
         }
     

@@ -32,10 +32,8 @@ def estimate_baseline_win_probability(num_simulations):
         
         if winner == 'player':
             player_wins += 1
-        elif winner == 'dealer':
-            dealer_wins += 1
         else:
-            draws += 1
+            dealer_wins += 1
 
     return {
         "player_win_prob": player_wins / num_simulations,
