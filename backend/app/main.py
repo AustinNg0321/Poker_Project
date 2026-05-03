@@ -11,7 +11,7 @@ import uuid
 # Add the parent directory to sys.path to allow importing from backend modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from backend.data.guest_games import Base, GuestGame, GameResponse, GameAction, ResultResponse
+from backend.app.models.guest_games import Base, GuestGame, GameResponse, GameAction, ResultResponse
 from backend.app.core.game import GameState
 from backend.app.evaluators.evaluator import determine_winner
 

@@ -1,7 +1,19 @@
 import itertools
+from random import sample
 from treys import Card, Evaluator
 
 evaluator = Evaluator()
+
+SUITS = ['h', 'd', 'c', 's']
+RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
+FULL_DECK = [Card.new(f"{r}{s}") for s in SUITS for r in RANKS]
+
+# Helper to find the best 5-card score for hands of 5+ cards.
+# In Treys, a lower score indicates a stronger poker hand
+def get_best_score(hand):
+    return evaluator.evaluate(hand, []) if len(hand) == 5 else min(
+        evaluator.evaluate(list(combo), []) 
+        for combo in itertools.combinations(hand, 5))
 
 # before converting to treys int format
 def determine_winner(player_hand, dealer_hand):
@@ -20,17 +32,30 @@ def determine_winner_helper(player_hand, dealer_hand):
     if len(set(player_hand + dealer_hand)) != len(player_hand) + len(dealer_hand): 
         raise ValueError("Duplicate cards detected between player and dealer hands.")
 
-    # Evaluate the player's exactly 5-card hand
-    player_score = evaluator.evaluate(player_hand, [])
-    
-    # The dealer has 8+ cards, but Treys evaluates max 7 cards natively.
-    # Therefore, we generate all 5-card combinations for the dealer and find the best (lowest score).
-    best_dealer_score = 10000 # the max for treys is 7462
-    for combo in itertools.combinations(dealer_hand, 5):
-        score = evaluator.evaluate(list(combo), [])
-        if score < best_dealer_score:
-            best_dealer_score = score
+    player_score = get_best_score(player_hand)
+    best_dealer_score = get_best_score(dealer_hand)
 
-    # In Treys, a lower score indicates a stronger poker hand
     # Draws count as losses
     return "player" if player_score < best_dealer_score else "dealer"
+
+"""
+Evaluates hand strength using Treys (lower is better).
+If limit is reached, returns exact score.
+If limit is not reached, uses a random rollout Monte Carlo policy to estimate expected score.
+"""
+def evaluate_hand_strength(hand, limit, dead_cards, num_simulations=100):
+    if num_simulations <= 0:
+        raise ValueError("num_simulations must be a positive integer.")
+    if len(hand) >= limit:
+        return get_best_score(hand)
+            
+    available_cards = [c for c in FULL_DECK if c not in hand and c not in dead_cards]
+    cards_needed = limit - len(hand)
+    total_score = 0
+
+    for _ in range(num_simulations):
+        simulated_hand = hand + sample(available_cards, cards_needed)
+        score = get_best_score(simulated_hand)
+        total_score += score
+    
+    return total_score / num_simulations
