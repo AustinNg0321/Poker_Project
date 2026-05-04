@@ -1,5 +1,6 @@
 import sys
 import os
+from random import seed
 
 # Add the backend directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -10,6 +11,8 @@ from app.evaluators.evaluator import determine_winner
 from app.simulators.v_0_1_logic import calculate_move_delta
 
 def simulate_games(num_games=10, mc_sims_per_move=100):
+    seed(os.urandom(4))
+
     player_wins = 0
     dealer_wins = 0
 
@@ -58,4 +61,4 @@ def simulate_games(num_games=10, mc_sims_per_move=100):
     print(f"Dealer Wins: {dealer_wins} ({(dealer_wins/num_games)*100:.2f}%)")
 
 if __name__ == "__main__":
-    simulate_games(num_games=2500, mc_sims_per_move=100) # will take a bit more than a minute
+    simulate_games(num_games=1000, mc_sims_per_move=100) # will take a bit more than a minute

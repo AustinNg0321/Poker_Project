@@ -1,6 +1,6 @@
-import random
 import sys
 import os
+from random import shuffle, seed
 
 # Add the backend directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -13,6 +13,8 @@ Estimates the baseline win probability by simulating completely random hands.
 Player gets 5 random cards, dealer gets 8 random cards.
 """
 def estimate_baseline_win_probability(num_simulations):
+    seed(os.urandom(4))
+
     suits = ['h', 'd', 'c', 's']
     ranks = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
     base_deck = [f"{rank}{suit}" for suit in suits for rank in ranks]
@@ -23,7 +25,7 @@ def estimate_baseline_win_probability(num_simulations):
     draws = 0
 
     for _ in range(num_simulations):
-        random.shuffle(treys_deck)
+        shuffle(treys_deck)
         
         player_hand = treys_deck[:5]
         dealer_hand = treys_deck[5:13]
