@@ -1,6 +1,7 @@
 import sys
 import os
 from app.evaluators.evaluator import get_best_score, FULL_DECK
+from app.simulators.perfect_evaluator import evaluate_player_deterministic
 from random import sample
 
 # Add the backend directory to sys.path
@@ -36,9 +37,13 @@ We want Delta to be transparent.
 # cards should be converted to treys cards before calling this function
 def calculate_move_delta(player_hand, dealer_hand, current_card, num_simulations=100):
     all_dead = player_hand + dealer_hand + [current_card]
-    expected_player_keep = evaluate_hand_strength(player_hand + [current_card], 5, all_dead, num_simulations)
+    
+    # Exact deterministic expected value for the player (limit 5)
+    expected_player_keep = evaluate_player_deterministic(player_hand + [current_card], all_dead)
+    expected_player_give = evaluate_player_deterministic(player_hand, all_dead)
+    
+    # Monte Carlo estimation for the dealer (limit 8)
     expected_dealer_keep = evaluate_hand_strength(dealer_hand, 8, all_dead, num_simulations)
-    expected_player_give = evaluate_hand_strength(player_hand, 5, all_dead, num_simulations)
     expected_dealer_give = evaluate_hand_strength(dealer_hand + [current_card], 8, all_dead, num_simulations)
     
     # Utility = Expected Dealer Score - Expected Player Score 

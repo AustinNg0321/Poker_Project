@@ -1,5 +1,4 @@
 import itertools
-from random import sample
 from treys import Card, Evaluator
 
 evaluator = Evaluator()
@@ -37,25 +36,3 @@ def determine_winner_helper(player_hand, dealer_hand):
 
     # Draws count as losses
     return "player" if player_score < best_dealer_score else "dealer"
-
-"""
-Evaluates hand strength using Treys (lower is better).
-If limit is reached, returns exact score.
-If limit is not reached, uses a random rollout Monte Carlo policy to estimate expected score.
-"""
-def evaluate_hand_strength(hand, limit, dead_cards, num_simulations=100):
-    if num_simulations <= 0:
-        raise ValueError("num_simulations must be a positive integer.")
-    if len(hand) >= limit:
-        return get_best_score(hand)
-            
-    available_cards = [c for c in FULL_DECK if c not in hand and c not in dead_cards]
-    cards_needed = limit - len(hand)
-    total_score = 0
-
-    for _ in range(num_simulations):
-        simulated_hand = hand + sample(available_cards, cards_needed)
-        score = get_best_score(simulated_hand)
-        total_score += score
-    
-    return total_score / num_simulations
