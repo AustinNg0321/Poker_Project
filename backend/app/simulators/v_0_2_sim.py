@@ -60,5 +60,10 @@ def simulate_games(num_games=10, mc_sims_per_move=100):
     print(f"Player Wins: {player_wins} ({(player_wins/num_games)*100:.2f}%)")
     print(f"Dealer Wins: {dealer_wins} ({(dealer_wins/num_games)*100:.2f}%)")
 
+# Note: The performance should be similar to the previous version since we're 
+# still using Monte Carlo simulations for dealer hand strength estimation. 
+# 
+# The main difference is that we now have a faster and more efficient way to 
+# evaluate player hand strength deterministically
 if __name__ == "__main__":
-    simulate_games(num_games=10, mc_sims_per_move=100)
+    simulate_games(num_games=1000, mc_sims_per_move=100) 
