@@ -1,12 +1,13 @@
 import sys
 import os
+import numpy as np
 
 # Add the backend directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from app.evaluators.evaluator import get_best_score, FULL_DECK
+from app.evaluators.evaluator import FULL_DECK
 from app.simulators.perfect_evaluator import evaluate_player_deterministic
-from random import sample
+from app.simulators.perfect_evaluator_8 import evaluate_dealer_deterministic
 from treys import Card
 
 def get_rank_int(card):
@@ -15,31 +16,8 @@ def get_rank_int(card):
 def get_suit_int(card):
     return Card.get_suit_int(card)
 
-CARD_TO_BIT = {c: 1 << ((get_rank_int(c) << 2) + (get_suit_int(c).bit_length() - 1)) for c in FULL_DECK}
-CARD_TO_RANK_SHIFT = {c: 1 << (get_rank_int(c) << 2) for c in FULL_DECK}
-
-"""
-Evaluates hand strength using Treys (lower is better).
-If limit is reached, returns exact score.
-If limit is not reached, uses a random rollout Monte Carlo policy to estimate expected score.
-"""
-def evaluate_hand_strength(hand, limit, dead_cards, num_simulations=100):
-    if num_simulations <= 0:
-        raise ValueError("num_simulations must be a positive integer.")
-    if len(hand) >= limit:
-        return get_best_score(hand)
-            
-    available_cards = [c for c in FULL_DECK if c not in hand and c not in dead_cards]
-    cards_needed = limit - len(hand)
-    total_score = 0
-
-    for _ in range(num_simulations):
-        simulated_hand = hand + sample(available_cards, cards_needed)
-        score = get_best_score(simulated_hand)
-        total_score += score
-    
-    return total_score / num_simulations
-
+CARD_TO_BIT = {c: np.int64(1) << ((get_rank_int(c) << np.int64(2)) + (get_suit_int(c).bit_length() - 1)) for c in FULL_DECK}
+CARD_TO_RANK_SHIFT = {c: 1 << (get_rank_int(c) * 4) for c in FULL_DECK}
 
 # convert hand, dead_cards into bitmasks before using
 def build_bitmasks(hand, dead_cards):
@@ -58,17 +36,14 @@ def build_bitmasks(hand, dead_cards):
     for c in available_cards:
         available_set |= CARD_TO_BIT[c]
         rem_rank_counts += CARD_TO_RANK_SHIFT[c]
-    
+
+    #print(bin(rem_rank_counts))
+
     return hand_bits, hand_rank_counts, available_set, rem_rank_counts
 
 
-"""
-Calculates the expected Utility (Treys Rank) of keeping vs giving the current card.
-Utility here is represented by difference in expected Treys ranks. Lower Treys rank = better hand.
-We want Delta to be transparent.
-"""
 # cards should be converted to treys cards before calling this function
-def calculate_move_delta(player_hand, dealer_hand, current_card, num_simulations=100):
+def calculate_move_delta(player_hand, dealer_hand, current_card):
     all_dead = player_hand + dealer_hand + [current_card]
 
     player_give_hand_bits, player_give_rank_counts, player_available_set, player_rem_rank_counts = (
@@ -89,9 +64,25 @@ def calculate_move_delta(player_hand, dealer_hand, current_card, num_simulations
                                                          player_available_set, 
                                                          player_rem_rank_counts)  
     
-    # Monte Carlo estimation for the dealer (limit 8)
-    expected_dealer_keep = evaluate_hand_strength(dealer_hand, 8, all_dead, num_simulations)
-    expected_dealer_give = evaluate_hand_strength(dealer_hand + [current_card], 8, all_dead, num_simulations)
+    # Exact deterministic expected value for the dealer (limit 8)
+    dealer_base_hand_bits, dealer_base_rank_counts, dealer_available_set, dealer_rem_rank_counts = (
+        build_bitmasks(dealer_hand, all_dead))
+    
+    dealer_with_card_hand_bits = dealer_base_hand_bits | CARD_TO_BIT[current_card]
+    dealer_with_card_rank_counts = dealer_base_rank_counts + CARD_TO_RANK_SHIFT[current_card]
+
+
+    expected_dealer_keep = evaluate_dealer_deterministic(dealer_hand, 
+                                                         dealer_base_hand_bits, 
+                                                         dealer_base_rank_counts, 
+                                                         dealer_available_set, 
+                                                         dealer_rem_rank_counts)
+    
+    expected_dealer_give = evaluate_dealer_deterministic(dealer_hand + [current_card], 
+                                                         dealer_with_card_hand_bits, 
+                                                         dealer_with_card_rank_counts, 
+                                                         dealer_available_set, 
+                                                         dealer_rem_rank_counts)
     
     # Utility = Expected Dealer Score - Expected Player Score 
     # Higher is better for Player, as lower scores represent stronger hands
@@ -113,12 +104,12 @@ def calculate_move_delta(player_hand, dealer_hand, current_card, num_simulations
 if __name__ == "__main__":
     from treys import Card
 
-    player_hand = [Card.new('Ah'), Card.new('Kh'), Card.new('Qh')]
+    player_hand = [Card.new('Ah'), Card.new('Kh'), Card.new('Qh'), Card.new('Th')]
     dealer_hand = [Card.new('2s'), Card.new('3c'), Card.new('4d')]
     current_card = Card.new('Jh')
     
     print("Running evaluation...")
-    results = calculate_move_delta(player_hand, dealer_hand, current_card, num_simulations=100)
+    results = calculate_move_delta(player_hand, dealer_hand, current_card)
     
     print(f"--- Utility if KEEP ---")
     print(f"Expected Player Rank: {results['expected_player_keep']:.2f}")

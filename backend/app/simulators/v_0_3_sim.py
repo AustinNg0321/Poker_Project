@@ -8,9 +8,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from treys import Card
 from app.core.game import GameState
 from app.evaluators.evaluator import determine_winner
-from app.simulators.v_0_2_logic import calculate_move_delta
+from app.simulators.v_0_3_logic import calculate_move_delta
 
-def simulate_games(num_games=10, mc_sims_per_move=100):
+def simulate_games(num_games=10):
     seed(os.urandom(4))
 
     player_wins = 0
@@ -40,9 +40,10 @@ def simulate_games(num_games=10, mc_sims_per_move=100):
             results = calculate_move_delta(
                 treys_player, 
                 treys_dealer, 
-                treys_card, 
-                num_simulations=mc_sims_per_move
+                treys_card
             )
+
+            #print(results['delta'])
             
             if results['delta'] > 0:
                 game.keep()
@@ -66,4 +67,4 @@ def simulate_games(num_games=10, mc_sims_per_move=100):
 # The main difference is that we now have a faster and more efficient way to 
 # evaluate player hand strength deterministically
 if __name__ == "__main__":
-    simulate_games(num_games=1000, mc_sims_per_move=1000) 
+    simulate_games(num_games=1000) 

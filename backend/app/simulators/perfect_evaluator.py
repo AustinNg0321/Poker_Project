@@ -80,11 +80,13 @@ def _calculate_base_weight(mset_counts: int, hand_rank_counts: int, rem_rank_cou
     need_counts = mset_counts - hand_rank_counts
     temp_need_counts = need_counts
 
+    # Numba defaults literals to 32-bit. 0xF << 48 (Ace shift) overflows 32-bit ints!
+    # You MUST cast it to 64-bit to prevent corruption on high cards.
     while temp_need_counts:
         lsb = temp_need_counts & -temp_need_counts
         shift = ((custom_bit_length(lsb) - 1) >> 2) << 2
-        weight *= COMB_LUT[rem_rank_counts >> shift & 0xF][(need_counts >> shift) & 0xF]
-        temp_need_counts &= (~(0xF << shift))
+        weight *= COMB_LUT[(rem_rank_counts >> shift) & 0xF][(need_counts >> shift) & 0xF]
+        temp_need_counts &= (~(np.int64(0xF) << np.int64(shift)))
       
     return weight, need_counts
 

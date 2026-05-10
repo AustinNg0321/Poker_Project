@@ -1,10 +1,11 @@
 import sys
 import os
-from app.evaluators.evaluator import get_best_score, FULL_DECK
-from random import sample
 
 # Add the backend directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from app.evaluators.evaluator import get_best_score, FULL_DECK
+from random import sample
 
 """
 Evaluates hand strength using Treys (lower is better).
