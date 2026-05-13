@@ -1,5 +1,6 @@
 import sys
 import os
+import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -17,13 +18,25 @@ def my_game_wrapper_0_2():
 def my_game_wrapper_0_3():
     return v_0_3_log()
 
+# good enough for relatively small CSV files (e.g. <100k rows). 
+# may optimize later if needed
+def get_next_id(filename):
+    if not os.path.exists(filename):
+        return 1
+    df = pd.read_csv(filename)
+    return df['Game_ID'].max() + 1
+
+# example usage: run from the project root directory
 if __name__ == '__main__':
-    # Initialize the logger
-    # example usage: python run_simulations.py
+    filepath = 'backend/app/simulators/results/v_0_1.csv'
+    version = 'v_0_1'
+
+    # initialize the logger
     logger = SimulationLogger(
-        filepath='backend/app/simulators/results/v_0_1.csv', 
-        version='v_0_1'
+        filepath=filepath,
+        version=version
     )
+    next_id = get_next_id(filepath)
     
-    # Run 100 trials of v0.3
-    logger.run_batch(batch_size=9861, run_game_func=my_game_wrapper_0_1, start_game_id=25140)
+    # Run 100 trials of v_0_1 for example
+    logger.run_batch(batch_size=100, run_game_func=my_game_wrapper_0_1, start_game_id=next_id)
