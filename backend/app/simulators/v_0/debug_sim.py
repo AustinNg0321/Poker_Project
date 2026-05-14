@@ -10,7 +10,7 @@ from app.evaluators.evaluator import determine_winner
 from treys import Card
 # Adjust this import to whatever logic file actually contains the `calculate_move_delta` you intend to use.
 # I am assuming v_0_3_logic based on recent context.
-from app.simulators.v_0_3_logic import calculate_move_delta
+from app.simulators.v_0.v_0_3_logic import calculate_move_delta
 
 def run_debug_game():
     print("=== STARTING 1 DEBUG GAME ===")

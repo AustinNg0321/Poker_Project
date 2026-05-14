@@ -3,7 +3,7 @@ import os
 from random import shuffle, seed
 
 # Add the backend directory to sys.path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 from app.evaluators.evaluator import determine_winner_helper
 from treys import Card

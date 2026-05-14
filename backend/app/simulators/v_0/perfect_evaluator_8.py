@@ -11,7 +11,7 @@ import numpy as np
 from app.evaluators.evaluator import get_best_score
 from numba import njit, int64, float64
 from numba.types import Tuple
-from app.simulators.perfect_evaluator import RANKS, STENCILS, CARRY_CHECKER, COMB_LUT
+from app.simulators.v_0.perfect_evaluator import RANKS, STENCILS, CARRY_CHECKER, COMB_LUT
 
 # Standard Poker Constants
 # Ranks: 2=0, 3=1, ..., A=12

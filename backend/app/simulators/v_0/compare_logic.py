@@ -5,12 +5,12 @@ import numpy as np
 import math
 from treys import Card, Deck
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-import app.simulators.v_0_2_logic as v2
-import app.simulators.v_0_3_logic as v3
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+import app.simulators.v_0.v_0_2_logic as v2
+import app.simulators.v_0.v_0_3_logic as v3
 
-import app.simulators.perfect_evaluator as pe
-import app.simulators.perfect_evaluator_8 as pe8
+import app.simulators.v_0.perfect_evaluator as pe
+import app.simulators.v_0.perfect_evaluator_8 as pe8
 
 def _get_player_weight(hand_bits, hand_rank_counts, available_set, rem_rank_counts, cards_needed):
     if cards_needed == 0: return 1

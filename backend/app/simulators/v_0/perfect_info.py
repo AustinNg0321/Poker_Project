@@ -3,7 +3,7 @@ import sys
 import os
 
 # Add the backend directory to sys.path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 # Pick the first royal flush, ensuring the dealer cannot also get a royal flush
 def simulate_perfect_info_win():

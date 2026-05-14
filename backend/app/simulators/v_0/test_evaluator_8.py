@@ -6,7 +6,7 @@ from treys import Evaluator, Card
 # Dynamically add the 'backend' directory to Python's module search path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
-from app.simulators.perfect_evaluator_8 import evaluate_dealer_deterministic
+from app.simulators.v_0.perfect_evaluator_8 import evaluate_dealer_deterministic
 
 def debug_brute_force(hand_cards, deck_cards, needed):
     evaluator = Evaluator()

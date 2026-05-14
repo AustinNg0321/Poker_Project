@@ -4,11 +4,11 @@ import sys
 import os
 from treys import Card
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 from app.evaluators.evaluator import get_best_score, FULL_DECK
-from app.simulators.v_0_3_logic import build_bitmasks
-from app.simulators.perfect_evaluator_8 import evaluate_dealer_deterministic
+from app.simulators.v_0.v_0_3_logic import build_bitmasks
+from app.simulators.v_0.perfect_evaluator_8 import evaluate_dealer_deterministic
 
 def debug_brute_force(hand, available_cards, needed):
     total_rank = 0
