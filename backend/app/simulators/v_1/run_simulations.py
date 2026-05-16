@@ -6,9 +6,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
 
 from app.simulators.v_1.simulation_logger import SimulationLogger
 from app.simulators.v_1.v_1_0_sim import generate_log as v_1_0_log
+from app.simulators.v_1.v_1_1_sim import generate_log as v_1_1_log
 
 def my_game_wrapper_1_0():
     return v_1_0_log()
+
+def my_game_wrapper_1_1():
+    return v_1_1_log()
 
 # good enough for relatively small CSV files (e.g. <100k rows). 
 # may optimize later if needed
@@ -24,8 +28,8 @@ def get_next_id(filename):
 
 # example usage: run from the project root directory
 if __name__ == '__main__':
-    filepath = 'backend/app/simulators/results/v_1_0_unfinished_1.csv'
-    version = 'v_1_0_unfinished'
+    filepath = 'backend/app/simulators/results/v_1_1_p09_1.csv'
+    version = 'v_1_1_p09'
 
     # initialize the logger
     logger = SimulationLogger(
@@ -35,4 +39,4 @@ if __name__ == '__main__':
     next_id = get_next_id(filepath)
     
     # Run 100 trials of v_0_1 for example
-    logger.run_batch(batch_size=5213, run_game_func=my_game_wrapper_1_0, start_game_id=next_id)
+    logger.run_batch(batch_size=1000000, run_game_func=my_game_wrapper_1_1, start_game_id=next_id)
