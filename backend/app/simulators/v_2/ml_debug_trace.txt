@@ -1,0 +1,383 @@
+
+[STARTUP] --- FEATURE BOUNDARY AUDIT ---
+Model Expected Features (Length 8):
+['player_hand_mask', 'dealer_hand_mask', 'player_card_count', 'dealer_card_count', 'cards_remaining_in_deck', 'dealer_draw_shortfall', 'player_max_suit_count', 'player_is_consecutive_count']
+------------------------------------------
+
+
+[========================================]
+[GAME 1 | MOVE 1] - DETAILED LOOKAHEAD TRACE
+[========================================]
+
+--- 1. SCENARIO RAW VECTORS ---
+KEEP SCENARIO VECTOR:
+  player_hand_mask              : 16
+  dealer_hand_mask              : 0
+  player_card_count             : 1
+  dealer_card_count             : 0
+  cards_remaining_in_deck       : 50
+  dealer_draw_shortfall         : 8
+  player_max_suit_count         : 1
+  player_is_consecutive_count   : 1
+
+GIVE SCENARIO VECTOR:
+  player_hand_mask              : 0
+  dealer_hand_mask              : 16
+  player_card_count             : 0
+  dealer_card_count             : 1
+  cards_remaining_in_deck       : 50
+  dealer_draw_shortfall         : 7
+  player_max_suit_count         : 0
+  player_is_consecutive_count   : 0
+
+--- 2. PREDICTION DELTA ---
+Prob(KEEP) : 0.59902900
+Prob(GIVE) : 0.63124979
+DELTA      : 0.03222078
+-> BOT SELECTED: GIVE
+
+[========================================]
+[GAME 1 | MOVE 2] - DETAILED LOOKAHEAD TRACE
+[========================================]
+
+--- 1. SCENARIO RAW VECTORS ---
+KEEP SCENARIO VECTOR:
+  player_hand_mask              : 268435456
+  dealer_hand_mask              : 16
+  player_card_count             : 1
+  dealer_card_count             : 1
+  cards_remaining_in_deck       : 49
+  dealer_draw_shortfall         : 7
+  player_max_suit_count         : 1
+  player_is_consecutive_count   : 1
+
+GIVE SCENARIO VECTOR:
+  player_hand_mask              : 0
+  dealer_hand_mask              : 268435472
+  player_card_count             : 0
+  dealer_card_count             : 2
+  cards_remaining_in_deck       : 49
+  dealer_draw_shortfall         : 6
+  player_max_suit_count         : 0
+  player_is_consecutive_count   : 0
+
+--- 2. PREDICTION DELTA ---
+Prob(KEEP) : 0.62952250
+Prob(GIVE) : 0.62883687
+DELTA      : 0.00068563
+-> BOT SELECTED: KEEP
+
+[========================================]
+[GAME 1 | MOVE 3] - DETAILED LOOKAHEAD TRACE
+[========================================]
+
+--- 1. SCENARIO RAW VECTORS ---
+KEEP SCENARIO VECTOR:
+  player_hand_mask              : 70369012613120
+  dealer_hand_mask              : 16
+  player_card_count             : 2
+  dealer_card_count             : 1
+  cards_remaining_in_deck       : 48
+  dealer_draw_shortfall         : 7
+  player_max_suit_count         : 1
+  player_is_consecutive_count   : 1
+
+GIVE SCENARIO VECTOR:
+  player_hand_mask              : 268435456
+  dealer_hand_mask              : 70368744177680
+  player_card_count             : 1
+  dealer_card_count             : 2
+  cards_remaining_in_deck       : 48
+  dealer_draw_shortfall         : 6
+  player_max_suit_count         : 1
+  player_is_consecutive_count   : 1
+
+--- 2. PREDICTION DELTA ---
+Prob(KEEP) : 0.56147176
+Prob(GIVE) : 0.59941190
+DELTA      : 0.03794014
+-> BOT SELECTED: GIVE
+
+[========================================]
+[GAME 1 | MOVE 4] - DETAILED LOOKAHEAD TRACE
+[========================================]
+
+--- 1. SCENARIO RAW VECTORS ---
+KEEP SCENARIO VECTOR:
+  player_hand_mask              : 268435464
+  dealer_hand_mask              : 70368744177680
+  player_card_count             : 2
+  dealer_card_count             : 2
+  cards_remaining_in_deck       : 47
+  dealer_draw_shortfall         : 6
+  player_max_suit_count         : 1
+  player_is_consecutive_count   : 1
+
+GIVE SCENARIO VECTOR:
+  player_hand_mask              : 268435456
+  dealer_hand_mask              : 70368744177688
+  player_card_count             : 1
+  dealer_card_count             : 3
+  cards_remaining_in_deck       : 47
+  dealer_draw_shortfall         : 5
+  player_max_suit_count         : 1
+  player_is_consecutive_count   : 1
+
+--- 2. PREDICTION DELTA ---
+Prob(KEEP) : 0.61128885
+Prob(GIVE) : 0.60038859
+DELTA      : 0.01090026
+-> BOT SELECTED: KEEP
+
+[========================================]
+[GAME 1 | MOVE 5] - DETAILED LOOKAHEAD TRACE
+[========================================]
+
+--- 1. SCENARIO RAW VECTORS ---
+KEEP SCENARIO VECTOR:
+  player_hand_mask              : 550024249352
+  dealer_hand_mask              : 70368744177680
+  player_card_count             : 3
+  dealer_card_count             : 2
+  cards_remaining_in_deck       : 46
+  dealer_draw_shortfall         : 6
+  player_max_suit_count         : 2
+  player_is_consecutive_count   : 1
+
+GIVE SCENARIO VECTOR:
+  player_hand_mask              : 268435464
+  dealer_hand_mask              : 70918499991568
+  player_card_count             : 2
+  dealer_card_count             : 3
+  cards_remaining_in_deck       : 46
+  dealer_draw_shortfall         : 5
+  player_max_suit_count         : 1
+  player_is_consecutive_count   : 1
+
+--- 2. PREDICTION DELTA ---
+Prob(KEEP) : 0.61948973
+Prob(GIVE) : 0.59977251
+DELTA      : 0.01971722
+-> BOT SELECTED: KEEP
+
+[========================================]
+[GAME 1 | MOVE 6] - DETAILED LOOKAHEAD TRACE
+[========================================]
+
+--- 1. SCENARIO RAW VECTORS ---
+KEEP SCENARIO VECTOR:
+  player_hand_mask              : 9346117271560
+  dealer_hand_mask              : 70368744177680
+  player_card_count             : 4
+  dealer_card_count             : 2
+  cards_remaining_in_deck       : 45
+  dealer_draw_shortfall         : 6
+  player_max_suit_count         : 3
+  player_is_consecutive_count   : 2
+
+GIVE SCENARIO VECTOR:
+  player_hand_mask              : 550024249352
+  dealer_hand_mask              : 79164837199888
+  player_card_count             : 3
+  dealer_card_count             : 3
+  cards_remaining_in_deck       : 45
+  dealer_draw_shortfall         : 5
+  player_max_suit_count         : 2
+  player_is_consecutive_count   : 1
+
+--- 2. PREDICTION DELTA ---
+Prob(KEEP) : 0.53907502
+Prob(GIVE) : 0.62644124
+DELTA      : 0.08736622
+-> BOT SELECTED: GIVE
+
+[========================================]
+[GAME 1 | MOVE 7] - DETAILED LOOKAHEAD TRACE
+[========================================]
+
+--- 1. SCENARIO RAW VECTORS ---
+KEEP SCENARIO VECTOR:
+  player_hand_mask              : 550024249480
+  dealer_hand_mask              : 79164837199888
+  player_card_count             : 4
+  dealer_card_count             : 3
+  cards_remaining_in_deck       : 44
+  dealer_draw_shortfall         : 5
+  player_max_suit_count         : 3
+  player_is_consecutive_count   : 2
+
+GIVE SCENARIO VECTOR:
+  player_hand_mask              : 550024249352
+  dealer_hand_mask              : 79164837200016
+  player_card_count             : 3
+  dealer_card_count             : 4
+  cards_remaining_in_deck       : 44
+  dealer_draw_shortfall         : 4
+  player_max_suit_count         : 2
+  player_is_consecutive_count   : 1
+
+--- 2. PREDICTION DELTA ---
+Prob(KEEP) : 0.47913274
+Prob(GIVE) : 0.60954195
+DELTA      : 0.13040921
+-> BOT SELECTED: GIVE
+
+[========================================]
+[GAME 1 | MOVE 8] - DETAILED LOOKAHEAD TRACE
+[========================================]
+
+--- 1. SCENARIO RAW VECTORS ---
+KEEP SCENARIO VECTOR:
+  player_hand_mask              : 550024773640
+  dealer_hand_mask              : 79164837200016
+  player_card_count             : 4
+  dealer_card_count             : 4
+  cards_remaining_in_deck       : 43
+  dealer_draw_shortfall         : 4
+  player_max_suit_count         : 3
+  player_is_consecutive_count   : 1
+
+GIVE SCENARIO VECTOR:
+  player_hand_mask              : 550024249352
+  dealer_hand_mask              : 79164837724304
+  player_card_count             : 3
+  dealer_card_count             : 5
+  cards_remaining_in_deck       : 43
+  dealer_draw_shortfall         : 3
+  player_max_suit_count         : 2
+  player_is_consecutive_count   : 1
+
+--- 2. PREDICTION DELTA ---
+Prob(KEEP) : 0.50118345
+Prob(GIVE) : 0.63230878
+DELTA      : 0.13112533
+-> BOT SELECTED: GIVE
+
+[========================================]
+[GAME 1 | MOVE 9] - DETAILED LOOKAHEAD TRACE
+[========================================]
+
+--- 1. SCENARIO RAW VECTORS ---
+KEEP SCENARIO VECTOR:
+  player_hand_mask              : 550024253448
+  dealer_hand_mask              : 79164837724304
+  player_card_count             : 4
+  dealer_card_count             : 5
+  cards_remaining_in_deck       : 42
+  dealer_draw_shortfall         : 3
+  player_max_suit_count         : 2
+  player_is_consecutive_count   : 1
+
+GIVE SCENARIO VECTOR:
+  player_hand_mask              : 550024249352
+  dealer_hand_mask              : 79164837728400
+  player_card_count             : 3
+  dealer_card_count             : 6
+  cards_remaining_in_deck       : 42
+  dealer_draw_shortfall         : 2
+  player_max_suit_count         : 2
+  player_is_consecutive_count   : 1
+
+--- 2. PREDICTION DELTA ---
+Prob(KEEP) : 0.62706834
+Prob(GIVE) : 0.67202878
+DELTA      : 0.04496044
+-> BOT SELECTED: GIVE
+
+[========================================]
+[GAME 1 | MOVE 10] - DETAILED LOOKAHEAD TRACE
+[========================================]
+
+--- 1. SCENARIO RAW VECTORS ---
+KEEP SCENARIO VECTOR:
+  player_hand_mask              : 550032637960
+  dealer_hand_mask              : 79164837728400
+  player_card_count             : 4
+  dealer_card_count             : 6
+  cards_remaining_in_deck       : 41
+  dealer_draw_shortfall         : 2
+  player_max_suit_count         : 3
+  player_is_consecutive_count   : 1
+
+GIVE SCENARIO VECTOR:
+  player_hand_mask              : 550024249352
+  dealer_hand_mask              : 79164846117008
+  player_card_count             : 3
+  dealer_card_count             : 7
+  cards_remaining_in_deck       : 41
+  dealer_draw_shortfall         : 1
+  player_max_suit_count         : 2
+  player_is_consecutive_count   : 1
+
+--- 2. PREDICTION DELTA ---
+Prob(KEEP) : 0.59387082
+Prob(GIVE) : 0.66836196
+DELTA      : 0.07449114
+-> BOT SELECTED: GIVE
+
+[========================================]
+[GAME 1 | MOVE 11] - DETAILED LOOKAHEAD TRACE
+[========================================]
+
+--- 1. SCENARIO RAW VECTORS ---
+KEEP SCENARIO VECTOR:
+  player_hand_mask              : 551097991176
+  dealer_hand_mask              : 79164846117008
+  player_card_count             : 4
+  dealer_card_count             : 7
+  cards_remaining_in_deck       : 40
+  dealer_draw_shortfall         : 1
+  player_max_suit_count         : 2
+  player_is_consecutive_count   : 1
+
+GIVE SCENARIO VECTOR:
+  player_hand_mask              : 550024249352
+  dealer_hand_mask              : 79165919858832
+  player_card_count             : 3
+  dealer_card_count             : 8
+  cards_remaining_in_deck       : 40
+  dealer_draw_shortfall         : 0
+  player_max_suit_count         : 2
+  player_is_consecutive_count   : 1
+
+--- 2. PREDICTION DELTA ---
+Prob(KEEP) : 0.74504524
+Prob(GIVE) : 0.66882211
+DELTA      : 0.07622313
+-> BOT SELECTED: KEEP
+
+[========================================]
+[GAME 1 | MOVE 12] - DETAILED LOOKAHEAD TRACE
+[========================================]
+
+--- 1. SCENARIO RAW VECTORS ---
+KEEP SCENARIO VECTOR:
+  player_hand_mask              : 551097991178
+  dealer_hand_mask              : 79164846117008
+  player_card_count             : 5
+  dealer_card_count             : 7
+  cards_remaining_in_deck       : 39
+  dealer_draw_shortfall         : 1
+  player_max_suit_count         : 2
+  player_is_consecutive_count   : 1
+
+GIVE SCENARIO VECTOR:
+  player_hand_mask              : 551097991176
+  dealer_hand_mask              : 79164846117010
+  player_card_count             : 4
+  dealer_card_count             : 8
+  cards_remaining_in_deck       : 39
+  dealer_draw_shortfall         : 0
+  player_max_suit_count         : 2
+  player_is_consecutive_count   : 1
+
+--- 2. PREDICTION DELTA ---
+Prob(KEEP) : 0.77837288
+Prob(GIVE) : 0.77428281
+DELTA      : 0.00409007
+-> BOT SELECTED: KEEP
+
+Simulation Complete
+Total Games Played: 1000
+Total Wins:         174
+Win Rate:           17.40%

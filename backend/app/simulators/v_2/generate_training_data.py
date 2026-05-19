@@ -10,11 +10,6 @@ from app.core.game import GameState
 from app.evaluators.evaluator import determine_winner, get_best_score
 from app.simulators.v_1.v_1_0_logic import calculate_move_delta, CARD_TO_BIT
 
-def evaluate_mini_score(hand_treys):
-    if len(hand_treys) >= 5:
-        return get_best_score(hand_treys)
-    return 7463 + ((5 - len(hand_treys)) * 100)
-
 def get_max_suit_count(hand_treys):
     if not hand_treys:
         return 0
@@ -43,15 +38,17 @@ def get_longest_straight_stretch(hand_treys):
     return max_streak
 
 
-def run_simulation(target_games=25000):
-    output_file = os.path.join(os.path.dirname(__file__), 'training_data_v2.csv')
+def run_simulation(target_games=50000):
+    output_file = os.path.join(os.path.dirname(__file__), 'training_data_v2_0.csv')
     
     headers = [
         "game_id", "move_num", "current_card_mask", "player_hand_mask", "dealer_hand_mask",
-        "player_card_count", "dealer_card_count", "decision", 
-        "cards_remaining_in_deck", "dealer_draw_shortfall", 
+        "player_card_count", "dealer_card_count", 
+        "decision", 
+        "cards_remaining_in_deck",
+        "dealer_draw_shortfall", 
         "player_max_suit_count", "player_is_consecutive_count",
-        "current_player_rank_score", "current_dealer_rank_score",
+        "dealer_max_suit_count", "dealer_max_consecutive_count",
         "final_player_rank", "final_dealer_rank",
         "game_won"
     ]
@@ -108,8 +105,8 @@ def run_simulation(target_games=25000):
                     "dealer_draw_shortfall": max(0, 8 - len(game.dealer_hand)),
                     "player_max_suit_count": get_max_suit_count(treys_player),
                     "player_is_consecutive_count": get_longest_straight_stretch(treys_player),
-                    "current_player_rank_score": evaluate_mini_score(treys_player),
-                    "current_dealer_rank_score": evaluate_mini_score(treys_dealer)
+                    "dealer_max_suit_count": get_max_suit_count(treys_dealer),
+                    "dealer_max_consecutive_count": get_longest_straight_stretch(treys_dealer),
                 }
                 game_log_cache.append(log_row)
                 
@@ -144,5 +141,5 @@ def run_simulation(target_games=25000):
             game_id += 1
 
 if __name__ == "__main__":
-    run_simulation(25000)
-    print("\nScript successfully generated: training_data_v2.csv")
+    run_simulation(50000)
+    print("\nScript successfully generated: training_data_v2_0.csv")
