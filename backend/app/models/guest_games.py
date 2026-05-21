@@ -5,7 +5,7 @@ from typing import List, Optional, Literal
 
 from sqlalchemy import Column, String, Integer, DateTime
 from sqlalchemy.ext.declarative import declarative_base
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 import pydantic
 
 Base = declarative_base()
@@ -60,8 +60,6 @@ class GameCreate(BaseModel):
 
 class GameAction(BaseModel):
     action: Literal["keep", "give"]
-
-from pydantic import BaseModel, ConfigDict, model_validator
 
 class GameResponse(GameBase):
     player_hand: List[str] = []

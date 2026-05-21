@@ -113,11 +113,14 @@ def get_session_id(request: Request) -> str:
     return sid
 
 # 2. Used by routes (Sets the cookie on the response)
-def ensure_session_cookie(response: Response = Depends(), user_id: str = Depends(get_session_id)):
-    # Logic to only set the cookie on the response object
-    cookie_name = os.getenv("SESSION_COOKIE_NAME", "session_id")
-    # ... your existing response.set_cookie(...) logic here ...
-    return user_id
+def ensure_session_cookie(request: Request) -> str:
+    sid = request.session.get("session_id") or request.cookies.get(
+        os.getenv("SESSION_COOKIE_NAME", "session_id")
+    )
+    if not sid:
+        sid = str(uuid.uuid4())
+        request.session["session_id"] = sid
+    return sid
 
 # Global Exception Handlers
 logger = logging.getLogger(__name__)
@@ -171,10 +174,6 @@ def get_db():
 @app.get("/")
 def read_root():
     return {"status": "ok"}
-
-# Define this at the top
-def get_response(response: Response = Depends()):
-    return response
 
 # Endpoints
 @app.post("/game/new", response_model=GameResponse)
