@@ -233,9 +233,14 @@ def read_root():
 # Endpoints
 @app.post("/game/new", response_model=GameResponse)
 @limiter.limit("10/minute")
-def create_new_game(request: Request, response: Response, db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
-    # get_or_create_player logic
-    get_or_create_player(user_id, db := db)  # keep original behavior
+def create_new_game(
+    request: Request,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_session_id),
+    response: Response = None,  # avoid Pydantic introspection by providing a default
+):
+    # Ensure player exists
+    get_or_create_player(user_id, db)
 
     try:
         game = db.query(GuestGame).filter(GuestGame.user_id == user_id).with_for_update().first()
@@ -257,7 +262,13 @@ def create_new_game(request: Request, response: Response, db: Session = Depends(
 
 @app.post("/action", response_model=GameResponse)
 @limiter.limit("2/second")
-def play_action(request: Request, response: Response, action_data: GameAction, db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
+def play_action(
+    request: Request,
+    action_data: GameAction,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_session_id),
+    response: Response = None,  # avoid Pydantic introspection by providing a default
+):
     try:
         game = db.query(GuestGame).filter(GuestGame.user_id == user_id).with_for_update().first()
     except OperationalError:
