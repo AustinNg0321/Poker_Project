@@ -1,2 +1,10 @@
 fastapi
 uvicorn
+fastapi
+uvicorn
+sqlalchemy
+python-dotenv
+slowapi
+treys
+pytest
+psycopg2-binary

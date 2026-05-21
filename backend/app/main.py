@@ -1,40 +1,107 @@
 from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.exc import OperationalError
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
+from typing import Optional
 import sys
 import os
 import uuid
+import logging
 
 # Add the parent directory to sys.path to allow importing from backend modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from backend.app.models.guest_games import Base, GuestGame, GameResponse, GameAction, ResultResponse
+from backend.app.models.guest_games import Base, GuestGame, GameResponse, GameAction, ResultResponse, HintResponse
 from backend.app.core.game import GameState
 from backend.app.evaluators.evaluator import determine_winner
+from backend.app.simulators.v_1.v_1_0_logic import calculate_move_delta
+from treys import Card
+
+load_dotenv()
 
 # Database Setup
-SQLALCHEMY_DATABASE_URL = "sqlite:///./pokergame.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+DATABASE_URL = os.getenv("DATABASE_URL")
+engine = create_engine(
+    DATABASE_URL, 
+    # check_same_thread is only needed for SQLite
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+FRONTEND_URL = os.getenv("FRONTEND_URL")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"], # Update with your frontend URL
+    allow_origins=[FRONTEND_URL], # Update with your frontend URL
     allow_credentials=True, # Required for cookies/sessions
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Add Session Middleware for signed cookies
-load_dotenv()
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY"))
+
+def get_session_id(request: Request):
+    if "session_id" not in request.session:
+        request.session["session_id"] = str(uuid.uuid4())
+    return request.session["session_id"]
+
+# Global Exception Handlers
+logger = logging.getLogger(__name__)
+limiter = Limiter(key_func=get_session_id)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# 1. Catch-all for unexpected server errors (500)
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected server error occurred. Please try again later."}
+    )
+
+# 2. Standardize expected HTTP exceptions (e.g., 400, 404)
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    logger.info(f"HTTP error {exc.status_code}: {exc.detail} - path={request.url.path}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+
+# 3. Clean up Pydantic validation errors (422)
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.info(f"Validation error on {request.url.path}: {exc.errors()}")
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": "Request validation failed.",
+            "errors": exc.errors()
+        },
+    )
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exception_handler(request: Request, exc: RateLimitExceeded):
+    logger.warning(f"Rate limit breached by {request.client.host}")
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests! Please try again in a moment."}
+    )
+
 
 # create a game only when a user presses "start game" or similar
 def get_or_create_player(user_id: str, db: Session):
@@ -75,24 +142,23 @@ def get_db():
     finally:
         db.close()
 
-def get_session_id(request: Request):
-    if "session_id" not in request.session:
-        request.session["session_id"] = str(uuid.uuid4())
-    return request.session["session_id"]
-
 @app.get("/")
 def read_root():
     return {"status": "ok"}
 
 # New Session-based endpoint
 @app.post("/game/new", response_model=GameResponse)
-def create_new_game(db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
+@limiter.limit("10/minute")
+def create_new_game(request: Request, db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
     get_or_create_player(user_id, db)
     
-    # Treat session_id as user_id for GuestGame
-    game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
+    try:
+        game = db.query(GuestGame).filter(GuestGame.user_id == user_id).with_for_update().first()  # <-- CHANGED
+    except OperationalError:
+        game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()  # <-- CHANGED (SQLite Fallback)
+
     if is_game_started(game) and not is_game_over(game):
-        game.abandoned += 1
+        raise HTTPException(status_code=400, detail="Cannot start a new game while one is in progress.")
 
     # Initialize new game state
     new_state = GameState()
@@ -103,11 +169,16 @@ def create_new_game(db: Session = Depends(get_db), user_id: str = Depends(get_se
     
     db.commit()
     db.refresh(game)
-    return game
+    return game # deck will be filtered out by response model
 
 @app.post("/action", response_model=GameResponse)
-def play_action(action_data: GameAction, db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
-    game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
+@limiter.limit("2/second")
+def play_action(request: Request, action_data: GameAction, db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
+    try:
+        game = db.query(GuestGame).filter(GuestGame.user_id == user_id).with_for_update().first()
+    except OperationalError:
+        game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
+
     if not game or not is_game_started(game):
         raise HTTPException(status_code=404, detail="Game not found for this user")
     if not is_game_valid(game):
@@ -146,17 +217,45 @@ def play_action(action_data: GameAction, db: Session = Depends(get_db), user_id:
     
     db.commit()
     db.refresh(game)
+    return game # deck will be filtered out by response model
+
+@app.get("/game", response_model=Optional[GameResponse])
+@limiter.limit("60/minute")
+def get_game(request: Request, db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
+    game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
+    if not game or not is_game_started(game):
+        return None
     return game
 
-@app.get("/game", response_model=GameResponse)
-def get_game(db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
+@app.get("/hint", response_model=HintResponse)
+@limiter.limit("30/minute")
+def get_hint(request: Request, db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
     game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
     if not game or not is_game_started(game):
         raise HTTPException(status_code=404, detail="Game not found")
-    return game
+    if is_game_over(game):
+        raise HTTPException(status_code=400, detail="Game is over.")
+    if not game.current_card:
+        raise HTTPException(status_code=400, detail="No current card to make a decision on.")
+
+    player_hand_treys = [Card.new(c) for c in game.player_hand]
+    dealer_hand_treys = [Card.new(c) for c in game.dealer_hand]
+    current_card_treys = Card.new(game.current_card)
+
+    results = calculate_move_delta(player_hand_treys, dealer_hand_treys, current_card_treys)
+    
+    keep_utility = results["keep_utility"]
+    give_utility = results["give_utility"]
+
+    return {
+        "action": "keep" if keep_utility >= give_utility else "give",
+        "keep_delta": keep_utility,
+        "give_delta": give_utility
+    }
 
 @app.get("/results", response_model=ResultResponse)
-def get_results(db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
+@limiter.limit("20/minute")
+def get_results(request: Request, db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
     game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
     if not game or not is_game_started(game):
         raise HTTPException(status_code=404, detail="Game not found")
@@ -171,8 +270,7 @@ def get_results(db: Session = Depends(get_db), user_id: str = Depends(get_sessio
             "player_hand": game.player_hand,
             "dealer_hand": game.dealer_hand,
             "wins": game.wins,
-            "losses": game.losses,
-            "abandoned": game.abandoned
+            "losses": game.losses
         }
     
     except Exception as e:

@@ -19,8 +19,7 @@ class GuestGame(Base):
     _deck = Column("deck", String, default="[]")
     current_card = Column(String, nullable=True)
     wins = Column(Integer, default=0)
-    losses = Column(Integer, default=0) 
-    abandoned = Column(Integer, default=0)
+    losses = Column(Integer, default=0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -54,7 +53,6 @@ class GameBase(BaseModel):
     current_card: Optional[str] = None
     wins: int = 0
     losses: int = 0
-    abandoned: int = 0
 
 class GameCreate(BaseModel):
     pass
@@ -65,12 +63,16 @@ class GameAction(BaseModel):
 class GameResponse(GameBase):
     player_hand: List[str]
     dealer_hand: List[str]
-    deck: List[str]
     created_at: datetime
     updated_at: datetime
 
     class Config:
         from_attributes = True
+
+class HintResponse(BaseModel):
+    action: str
+    keep_delta: float
+    give_delta: float
 
 class ResultResponse(BaseModel):
     status: str
@@ -80,4 +82,3 @@ class ResultResponse(BaseModel):
     dealer_hand: Optional[List[str]] = None
     wins: Optional[int] = None
     losses: Optional[int] = None
-    abandoned: Optional[int] = None
