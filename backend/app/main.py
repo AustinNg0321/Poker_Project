@@ -39,6 +39,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+app.router.redirect_slashes = False
 
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 app.add_middleware(
@@ -50,12 +51,7 @@ app.add_middleware(
 )
 
 # Add Session Middleware for signed cookies
-app.add_middleware(
-    SessionMiddleware, 
-    secret_key=os.getenv("SESSION_SECRET_KEY"), 
-    same_site="none",
-    secure=True
-)
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY"))
 
 def get_session_id(request: Request):
     if "session_id" not in request.session:
