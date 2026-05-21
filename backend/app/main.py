@@ -230,6 +230,10 @@ def get_db():
 def read_root():
     return {"status": "ok"}
 
+# Define this at the top
+def get_response(response: Response = Depends()):
+    return response
+
 # Endpoints
 @app.post("/game/new", response_model=GameResponse)
 @limiter.limit("10/minute")
@@ -237,7 +241,7 @@ def create_new_game(
     request: Request,
     db: Session = Depends(get_db),
     user_id: str = Depends(get_session_id),
-    response: Response = None,  # avoid Pydantic introspection by providing a default
+    response: Response = Depends(get_response),  # avoid Pydantic introspection by providing a default
 ):
     # Ensure player exists
     get_or_create_player(user_id, db)
