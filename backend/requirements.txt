@@ -8,3 +8,4 @@ slowapi
 treys
 pytest
 itsdangerous
+numpy
