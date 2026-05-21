@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -30,7 +32,7 @@ load_dotenv()
 # Database Setup
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(
-    DATABASE_URL, 
+    DATABASE_URL,
     # check_same_thread is only needed for SQLite
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
 )
@@ -44,28 +46,139 @@ app.router.redirect_slashes = False
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL], # Update with your frontend URL
-    allow_credentials=True, # Required for cookies/sessions
+    allow_origins=[FRONTEND_URL] if FRONTEND_URL else ["*"],
+    allow_credentials=True,  # Required for cookies/sessions
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Add Session Middleware for signed cookies
+# Ensure X-Forwarded-* headers are applied so request.url.scheme is correct behind a proxy like Railway
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
+# Add Session Middleware for signed cookies (do NOT pass secure/samesite args for older Starlette)
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY"))
 
-def get_session_id(request: Request):
-    if "session_id" not in request.session:
-        request.session["session_id"] = str(uuid.uuid4())
-    return request.session["session_id"]
+# Middleware to ensure Set-Cookie headers include SameSite=None and Secure when missing.
+# This is a broad fallback for older Starlette versions that reject secure/samesite in constructor.
+class SessionCookieAttributeMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, same_site: str = "None", secure: bool = True):
+        super().__init__(app)
+        self.same_site = same_site
+        self.secure = secure
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        # Rebuild raw_headers: for every Set-Cookie header ensure SameSite and Secure added if missing
+        new_headers = []
+        for name, value in response.raw_headers:
+            if name.lower() == b"set-cookie":
+                val = value.decode()
+                lower = val.lower()
+                if "samesite" not in lower:
+                    val += f"; SameSite={self.same_site}"
+                if self.secure and "secure" not in lower:
+                    val += "; Secure"
+                new_headers.append((name, val.encode()))
+            else:
+                new_headers.append((name, value))
+        response.raw_headers = new_headers
+        return response
+
+app.add_middleware(SessionCookieAttributeMiddleware, same_site="None", secure=True)
+
+def _read_session_id_from_request(request: Request) -> Optional[str]:
+    # Prefer session dict value set by SessionMiddleware
+    try:
+        sid = request.session.get("session_id")
+        if sid:
+            return sid
+    except Exception:
+        pass
+    # Fallback to dedicated cookie (we set this in get_session_id)
+    return request.cookies.get(os.getenv("SESSION_COOKIE_NAME", "session_id"))
+
+# Dependency used by routes and by the rate limiter key_func.
+# Response is optional so Limiter (which calls with only request) still works.
+def get_session_id(request: Request, response: Optional[Response] = None) -> str:
+    """
+    Ensure a stable session identifier:
+    - Prefer request.session["session_id"]
+    - Fall back to a dedicated cookie 'session_id' stored on the client (SameSite=None; Secure)
+    - If none exists, create a new id and persist it both into request.session and into a cookie (when Response available)
+    """
+    cookie_name = os.getenv("SESSION_COOKIE_NAME", "session_id")
+    # Try session store
+    try:
+        sid = request.session.get("session_id")
+    except Exception:
+        sid = None
+
+    if sid:
+        # Ensure we also emit a simple cross-site cookie for browsers that won't include the signed session cookie
+        if response is not None and cookie_name not in request.cookies:
+            try:
+                response.set_cookie(
+                    key=cookie_name,
+                    value=sid,
+                    httponly=True,
+                    secure=True,
+                    samesite="None",
+                    path="/",
+                    max_age=30 * 24 * 3600,
+                )
+            except TypeError:
+                # Older Starlette may not accept samesite kw; append raw header
+                cookie_val = f"{cookie_name}={sid}; Path=/; Max-Age={30*24*3600}; HttpOnly; Secure; SameSite=None"
+                if hasattr(response.headers, "append"):
+                    response.headers.append("set-cookie", cookie_val)
+                else:
+                    response.headers["set-cookie"] = cookie_val
+        return sid
+
+    # Check fallback cookie
+    sid = request.cookies.get(cookie_name)
+    if sid:
+        # Populate session so application code using request.session works
+        try:
+            request.session["session_id"] = sid
+        except Exception:
+            pass
+        return sid
+
+    # Create new session id
+    sid = str(uuid.uuid4())
+    try:
+        request.session["session_id"] = sid
+    except Exception:
+        pass
+
+    if response is not None:
+        try:
+            response.set_cookie(
+                key=cookie_name,
+                value=sid,
+                httponly=True,
+                secure=True,
+                samesite="None",
+                path="/",
+                max_age=30 * 24 * 3600,
+            )
+        except TypeError:
+            cookie_val = f"{cookie_name}={sid}; Path=/; Max-Age={30*24*3600}; HttpOnly; Secure; SameSite=None"
+            if hasattr(response.headers, "append"):
+                response.headers.append("set-cookie", cookie_val)
+            else:
+                response.headers["set-cookie"] = cookie_val
+
+    return sid
 
 # Global Exception Handlers
 logger = logging.getLogger(__name__)
-limiter = Limiter(key_func=get_session_id)
-
+limiter = Limiter(key_func=lambda request: _read_session_id_from_request(request) or str(request.client.host))
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# 1. Catch-all for unexpected server errors (500)
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception: {exc}")
@@ -74,7 +187,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "An unexpected server error occurred. Please try again later."}
     )
 
-# 2. Standardize expected HTTP exceptions (e.g., 400, 404)
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     logger.info(f"HTTP error {exc.status_code}: {exc.detail} - path={request.url.path}")
@@ -83,7 +195,6 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         content={"detail": exc.detail},
     )
 
-# 3. Clean up Pydantic validation errors (422)
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logger.info(f"Validation error on {request.url.path}: {exc.errors()}")
@@ -103,38 +214,6 @@ async def rate_limit_exception_handler(request: Request, exc: RateLimitExceeded)
         content={"detail": "Too many requests! Please try again in a moment."}
     )
 
-
-# create a game only when a user presses "start game" or similar
-def get_or_create_player(user_id: str, db: Session):
-    player = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
-    if not player:
-        player = GuestGame(user_id=user_id)
-        db.add(player)
-        db.commit()
-
-# determine if the user has initialized any game
-def is_game_started(game: GuestGame):
-    return game and (len(game.player_hand) > 0 or len(game.dealer_hand) > 0 or
-                      len(game.deck) > 0 or game.current_card is not None)
-
-# determine game progress solely with game info
-# no game -> false
-def is_game_over(game: GuestGame):
-    if game and not is_game_valid(game):
-        raise HTTPException(status_code=400, detail="Game is invalid.")
-    return game and len(game.player_hand) == 5
-
-def is_game_valid(game: GuestGame):
-    if not game or not is_game_started(game):
-        return False
-    if len(game.player_hand) > 5:
-        return False
-    if len(game.player_hand) == 5 and len(game.dealer_hand) < 8:
-        return False
-    if len(game.player_hand) < 5 and not game.current_card:
-        return False
-    return True
-
 # Dependencies
 def get_db():
     db = SessionLocal()
@@ -147,34 +226,34 @@ def get_db():
 def read_root():
     return {"status": "ok"}
 
-# New Session-based endpoint
+# Endpoints
 @app.post("/game/new", response_model=GameResponse)
 @limiter.limit("10/minute")
-def create_new_game(request: Request, db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
-    get_or_create_player(user_id, db)
-    
+def create_new_game(request: Request, response: Response, db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
+    # get_or_create_player logic
+    get_or_create_player(user_id, db := db)  # keep original behavior
+
     try:
-        game = db.query(GuestGame).filter(GuestGame.user_id == user_id).with_for_update().first()  # <-- CHANGED
+        game = db.query(GuestGame).filter(GuestGame.user_id == user_id).with_for_update().first()
     except OperationalError:
-        game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()  # <-- CHANGED (SQLite Fallback)
+        game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
 
     if is_game_started(game) and not is_game_over(game):
         raise HTTPException(status_code=400, detail="Cannot start a new game while one is in progress.")
 
-    # Initialize new game state
     new_state = GameState()
     game.deck = new_state.deck
     game.player_hand = new_state.player_hand
     game.dealer_hand = new_state.dealer_hand
     game.current_card = new_state.current_card
-    
+
     db.commit()
     db.refresh(game)
-    return game # deck will be filtered out by response model
+    return game
 
 @app.post("/action", response_model=GameResponse)
 @limiter.limit("2/second")
-def play_action(request: Request, action_data: GameAction, db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
+def play_action(request: Request, response: Response, action_data: GameAction, db: Session = Depends(get_db), user_id: str = Depends(get_session_id)):
     try:
         game = db.query(GuestGame).filter(GuestGame.user_id == user_id).with_for_update().first()
     except OperationalError:
@@ -184,7 +263,7 @@ def play_action(request: Request, action_data: GameAction, db: Session = Depends
         raise HTTPException(status_code=404, detail="Game not found for this user")
     if not is_game_valid(game):
         raise HTTPException(status_code=400, detail="Game is invalid.")
-    
+
     state = GameState()
     state.deck = game.deck
     state.player_hand = game.player_hand
@@ -202,23 +281,22 @@ def play_action(request: Request, action_data: GameAction, db: Session = Depends
             state.give()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
-    # Save state back
+
     game.deck = state.deck
     game.player_hand = state.player_hand
     game.dealer_hand = state.dealer_hand
     game.current_card = state.current_card
-    
+
     if is_game_over(game):
         winner = determine_winner(state.player_hand, state.dealer_hand)
         if winner == 'player':
             game.wins += 1
         elif winner == 'dealer':
             game.losses += 1
-    
+
     db.commit()
     db.refresh(game)
-    return game # deck will be filtered out by response model
+    return game
 
 @app.get("/game", response_model=Optional[GameResponse])
 @limiter.limit("60/minute")
@@ -244,7 +322,7 @@ def get_hint(request: Request, db: Session = Depends(get_db), user_id: str = Dep
     current_card_treys = Card.new(game.current_card)
 
     results = calculate_move_delta(player_hand_treys, dealer_hand_treys, current_card_treys)
-    
+
     keep_utility = results["keep_utility"]
     give_utility = results["give_utility"]
 
@@ -262,7 +340,7 @@ def get_results(request: Request, db: Session = Depends(get_db), user_id: str = 
         raise HTTPException(status_code=404, detail="Game not found")
     if not is_game_over(game):
         return {"status": "ongoing", "message": "Game is still ongoing"}
-        
+
     try:
         winner = determine_winner(game.player_hand, game.dealer_hand)
         return {
@@ -273,6 +351,45 @@ def get_results(request: Request, db: Session = Depends(get_db), user_id: str = 
             "wins": game.wins,
             "losses": game.losses
         }
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Debug endpoint to inspect cookies/session (useful in prod to check if browser is sending cookie)
+@app.get("/_debug/session")
+def debug_session(request: Request):
+    cookie_name = os.getenv("SESSION_COOKIE_NAME", "session_id")
+    return {
+        "cookies_header": request.headers.get("cookie"),
+        "cookie_sent": bool(request.cookies.get(cookie_name)),
+        "cookie_value": request.cookies.get(cookie_name),
+        "session_obj": dict(request.session) if hasattr(request, "session") else None,
+    }
+
+# Utility functions used above (defined here for completeness)
+def get_or_create_player(user_id: str, db: Session):
+    player = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
+    if not player:
+        player = GuestGame(user_id=user_id)
+        db.add(player)
+        db.commit()
+
+def is_game_started(game: GuestGame):
+    return game and (len(game.player_hand) > 0 or len(game.dealer_hand) > 0 or
+                     len(game.deck) > 0 or game.current_card is not None)
+
+def is_game_over(game: GuestGame):
+    if game and not is_game_valid(game):
+        raise HTTPException(status_code=400, detail="Game is invalid.")
+    return game and len(game.player_hand) == 5
+
+def is_game_valid(game: GuestGame):
+    if not game or not is_game_started(game):
+        return False
+    if len(game.player_hand) > 5:
+        return False
+    if len(game.player_hand) == 5 and len(game.dealer_hand) < 8:
+        return False
+    if len(game.player_hand) < 5 and not game.current_card:
+        return False
+    return True
