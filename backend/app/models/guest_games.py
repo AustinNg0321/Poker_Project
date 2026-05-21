@@ -65,11 +65,11 @@ class GameResponse(GameBase):
     dealer_hand: List[str]
     created_at: datetime
     updated_at: datetime
-    model_config = {"from_attributes": True}  # Pydantic v2: read attributes from ORM objects
-
-    class Config:
-        from_attributes = True
-        orm_mode = True  # Pydantic v1: allow reading from ORM objects
+    if int(pydantic.VERSION.split('.')[0]) >= 2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
 
 class HintResponse(BaseModel):
     action: str
