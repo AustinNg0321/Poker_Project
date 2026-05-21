@@ -186,10 +186,7 @@ def create_new_game(
     # Ensure player exists
     get_or_create_player(user_id, db)
 
-    try:
-        game = db.query(GuestGame).filter(GuestGame.user_id == user_id).with_for_update().first()
-    except OperationalError:
-        game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
+    game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
 
     if is_game_started(game) and not is_game_over(game):
         raise HTTPException(status_code=400, detail="Cannot start a new game while one is in progress.")
@@ -213,10 +210,7 @@ def play_action(
     user_id: str = Depends(get_session_id),
     response: Response = None,  # avoid Pydantic introspection by providing a default
 ):
-    try:
-        game = db.query(GuestGame).filter(GuestGame.user_id == user_id).with_for_update().first()
-    except OperationalError:
-        game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
+    game = db.query(GuestGame).filter(GuestGame.user_id == user_id).first()
 
     if not game or not is_game_started(game):
         raise HTTPException(status_code=404, detail="Game not found for this user")
