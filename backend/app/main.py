@@ -19,10 +19,10 @@ import logging
 # Add the parent directory to sys.path to allow importing from backend modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from backend.app.models.guest_games import Base, GuestGame, GameResponse, GameAction, ResultResponse, HintResponse
-from backend.app.core.game import GameState
-from backend.app.evaluators.evaluator import determine_winner
-from backend.app.simulators.v_1.v_1_0_logic import calculate_move_delta
+from app.models.guest_games import Base, GuestGame, GameResponse, GameAction, ResultResponse, HintResponse
+from app.core.game import GameState
+from app.evaluators.evaluator import determine_winner
+from app.simulators.v_1.v_1_0_logic import calculate_move_delta
 from treys import Card
 
 load_dotenv()
