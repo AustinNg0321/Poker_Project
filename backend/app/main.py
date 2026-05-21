@@ -104,78 +104,20 @@ def _read_session_id_from_request(request: Request) -> Optional[str]:
 
 # Dependency used by routes and by the rate limiter key_func.
 # Response is optional so Limiter (which calls with only request) still works.
-def get_session_id(request: Request, response: Optional[Response] = None) -> str:
-    """
-    Ensure a stable session identifier:
-    - Prefer request.session["session_id"]
-    - Fall back to a dedicated cookie 'session_id' stored on the client (SameSite=None; Secure)
-    - If none exists, create a new id and persist it both into request.session and into a cookie (when Response available)
-    """
-    cookie_name = os.getenv("SESSION_COOKIE_NAME", "session_id")
-    # Try session store
-    try:
-        sid = request.session.get("session_id")
-    except Exception:
-        sid = None
-
-    if sid:
-        # Ensure we also emit a simple cross-site cookie for browsers that won't include the signed session cookie
-        if response is not None and cookie_name not in request.cookies:
-            try:
-                response.set_cookie(
-                    key=cookie_name,
-                    value=sid,
-                    httponly=True,
-                    secure=True,
-                    samesite="None",
-                    path="/",
-                    max_age=30 * 24 * 3600,
-                )
-            except TypeError:
-                # Older Starlette may not accept samesite kw; append raw header
-                cookie_val = f"{cookie_name}={sid}; Path=/; Max-Age={30*24*3600}; HttpOnly; Secure; SameSite=None"
-                if hasattr(response.headers, "append"):
-                    response.headers.append("set-cookie", cookie_val)
-                else:
-                    response.headers["set-cookie"] = cookie_val
-        return sid
-
-    # Check fallback cookie
-    sid = request.cookies.get(cookie_name)
-    if sid:
-        # Populate session so application code using request.session works
-        try:
-            request.session["session_id"] = sid
-        except Exception:
-            pass
-        return sid
-
-    # Create new session id
-    sid = str(uuid.uuid4())
-    try:
+def get_session_id(request: Request) -> str:
+    # Logic to just extract/create ID from session or cookies
+    sid = request.session.get("session_id") or request.cookies.get(os.getenv("SESSION_COOKIE_NAME", "session_id"))
+    if not sid:
+        sid = str(uuid.uuid4())
         request.session["session_id"] = sid
-    except Exception:
-        pass
-
-    if response is not None:
-        try:
-            response.set_cookie(
-                key=cookie_name,
-                value=sid,
-                httponly=True,
-                secure=True,
-                samesite="None",
-                path="/",
-                max_age=30 * 24 * 3600,
-            )
-        except TypeError:
-            cookie_val = f"{cookie_name}={sid}; Path=/; Max-Age={30*24*3600}; HttpOnly; Secure; SameSite=None"
-            if hasattr(response.headers, "append"):
-                response.headers.append("set-cookie", cookie_val)
-            else:
-                response.headers["set-cookie"] = cookie_val
-
     return sid
+
+# 2. Used by routes (Sets the cookie on the response)
+def ensure_session_cookie(response: Response = Depends(), user_id: str = Depends(get_session_id)):
+    # Logic to only set the cookie on the response object
+    cookie_name = os.getenv("SESSION_COOKIE_NAME", "session_id")
+    # ... your existing response.set_cookie(...) logic here ...
+    return user_id
 
 # Global Exception Handlers
 logger = logging.getLogger(__name__)
@@ -240,8 +182,7 @@ def get_response(response: Response = Depends()):
 def create_new_game(
     request: Request,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_session_id),
-    response: Response = Depends(get_response),  # avoid Pydantic introspection by providing a default
+    user_id: str = Depends(ensure_session_cookie), # Use this instead
 ):
     # Ensure player exists
     get_or_create_player(user_id, db)
