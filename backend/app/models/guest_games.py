@@ -61,16 +61,32 @@ class GameCreate(BaseModel):
 class GameAction(BaseModel):
     action: Literal["keep", "give"]
 
+from pydantic import BaseModel, ConfigDict, model_validator
+
 class GameResponse(GameBase):
-    player_hand: List[str]
-    dealer_hand: List[str]
+    player_hand: List[str] = []
+    dealer_hand: List[str] = []
     created_at: datetime
     updated_at: datetime
-    if int(pydantic.VERSION.split('.')[0]) >= 2:
-        model_config = ConfigDict(from_attributes=True)
-    else:
-        class Config:
-            orm_mode = True
+    
+    model_config = ConfigDict(from_attributes=True)
+    
+    @model_validator(mode='before')
+    @classmethod
+    def extract_properties(cls, data):
+        # Handle SQLAlchemy model instances
+        if hasattr(data, '_player_hand'):
+            return {
+                'user_id': data.user_id,
+                'current_card': data.current_card,
+                'wins': data.wins,
+                'losses': data.losses,
+                'player_hand': data.player_hand,  # calls property
+                'dealer_hand': data.dealer_hand,  # calls property
+                'created_at': data.created_at,
+                'updated_at': data.updated_at,
+            }
+        return data
 
 class HintResponse(BaseModel):
     action: str
