@@ -3,7 +3,6 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy import create_engine
@@ -52,8 +51,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Ensure X-Forwarded-* headers are applied so request.url.scheme is correct behind a proxy like Railway
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+# Instead of ProxyHeadersMiddleware, handle Railway's X-Forwarded-Proto manually so FastAPI sees HTTPS.
+@app.middleware("http")
+async def trust_proxy_headers(request: Request, call_next):
+    # This manually handles the headers provided by Railway's load balancer
+    if request.headers.get("X-Forwarded-Proto", "").lower() == "https":
+        request.scope["scheme"] = "https"
+    return await call_next(request)
 
 # Add Session Middleware for signed cookies (do NOT pass secure/samesite args for older Starlette)
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY"))
