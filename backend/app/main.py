@@ -50,7 +50,12 @@ app.add_middleware(
 )
 
 # Add Session Middleware for signed cookies
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY"))
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=os.getenv("SESSION_SECRET_KEY"), 
+    same_site="none",
+    secure=True
+)
 
 def get_session_id(request: Request):
     if "session_id" not in request.session:
