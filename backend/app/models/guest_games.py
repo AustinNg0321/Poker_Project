@@ -6,6 +6,7 @@ from typing import List, Optional, Literal
 from sqlalchemy import Column, String, Integer, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from pydantic import BaseModel, Field
+import pydantic
 
 Base = declarative_base()
 
