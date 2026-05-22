@@ -56,7 +56,7 @@ def process_combination(dead_cards):
             
     return results
 
-def generate_lut():
+def generate_lut(output_filename='early_game_dealer_lut.json'):
     max_dead = 2
     print(f"Generating dealer LUT for <= {max_dead} dead cards...")
     
@@ -74,7 +74,7 @@ def generate_lut():
         for result_batch in executor.map(process_combination, all_combinations, chunksize=100):
             final_lut.update(result_batch)
             
-    output_path = os.path.join(os.path.dirname(__file__), 'early_game_dealer_lut_p09.json')
+    output_path = os.path.join(os.path.dirname(__file__), output_filename)
     with open(output_path, 'w') as f:
         json.dump(final_lut, f)
         

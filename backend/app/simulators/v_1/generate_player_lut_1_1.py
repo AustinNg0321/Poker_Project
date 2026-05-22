@@ -55,7 +55,7 @@ def process_combination(dead_cards):
             
     return results
 
-def generate_lut():
+def generate_lut(output_filename='early_game_player_lut.json'):
     # You mentioned changing max_dead to 1 for the dealer to save time. 
     # You can safely raise this for the player (e.g., 3 or 4) since the player loop evaluates ~6k multisets instead of ~120k.
     max_dead = 3
@@ -75,7 +75,7 @@ def generate_lut():
         for result_batch in executor.map(process_combination, all_combinations, chunksize=100):
             final_lut.update(result_batch)
             
-    output_path = os.path.join(os.path.dirname(__file__), 'early_game_player_lut_p09.json')
+    output_path = os.path.join(os.path.dirname(__file__), output_filename)
     with open(output_path, 'w') as f:
         json.dump(final_lut, f)
         

@@ -66,6 +66,57 @@ fast_iterator_array = np.array(FAST_ITERATOR, dtype=np.int64)
 # the first element is unused for convenience
 UTILITY_MAP = np.array([math.pow(i, 0.9) for i in range(7463)], dtype=np.float64)
 
+"""
+Injects a custom utility mapping for evaluating hand ranks.
+Updates the global array IN-PLACE so that Numba JIT compiled functions 
+immediately reflect the changes without recompilation or cache invalidation.
+
+Args:
+    new_map (np.ndarray): A 1D array of size 7463 of type float64.
+
+Note that the first element is unused and doesn't map to anything. 
+Subsequent elements 1 to 7462 correspond to the treys hand ranks in descending order of strength.
+"""
+def set_utility_map(new_map: np.ndarray):
+    
+    if new_map.shape != (7463,):
+        raise ValueError(f"Utility map must have exactly 7463 elements. Got {new_map.shape}")
+    
+    if new_map.dtype != np.float64:
+        new_map = new_map.astype(np.float64)
+        
+    # IN-PLACE update: This is crucial for Numba. 
+    # It overwrites the data at the existing memory pointer.
+    UTILITY_MAP[:] = new_map
+
+def set_lut_paths(player_lut_filename, dealer_lut_filename):
+    """Reload early game LUTs from disk for a given mapping."""
+    global PRECOMPUTED_EARLY_GAME_LUT, PRECOMPUTED_EARLY_GAME_LUT_8
+    
+    player_path = os.path.join(os.path.dirname(__file__), player_lut_filename)
+    dealer_path = os.path.join(os.path.dirname(__file__), dealer_lut_filename)
+    
+    if os.path.exists(player_path):
+        with open(player_path) as f:
+            PRECOMPUTED_EARLY_GAME_LUT = json.load(f)
+        print(f"✅ Loaded player LUT: {player_lut_filename}")
+    else:
+        PRECOMPUTED_EARLY_GAME_LUT = {}
+        print(f"⚠️  Player LUT not found: {player_lut_filename} — early game will use Numba loop")
+    
+    if os.path.exists(dealer_path):
+        with open(dealer_path) as f:
+            PRECOMPUTED_EARLY_GAME_LUT_8 = json.load(f)
+        print(f"✅ Loaded dealer LUT: {dealer_lut_filename}")
+    else:
+        PRECOMPUTED_EARLY_GAME_LUT_8 = {}
+        print(f"⚠️  Dealer LUT not found: {dealer_lut_filename} — early game will use Numba loop")
+    
+    # Invalidate LRU caches since early game results have changed
+    _cached_evaluate_player.cache_clear()
+    _cached_evaluate_dealer.cache_clear()
+
+
 @njit(int64(int64), cache=True, fastmath=True)
 def custom_bit_length(n: int) -> int:
     length = 0
